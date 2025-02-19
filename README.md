@@ -9,7 +9,6 @@ This project is a YouTube clone developed using React, Redux, and the YouTube Da
 
 
 ### 1. Video Viewing
-![Screenshot 1](https://i.postimg.cc/Y0RXmN13/Screenshot-2024-05-14-214228.png)
 
 - Users can watch videos from various channels.
 - Video details such as title, channel name, view count, and publish date are displayed.
@@ -18,7 +17,6 @@ This project is a YouTube clone developed using React, Redux, and the YouTube Da
 
 
 ### 2. Topic Navigation
-![Screenshot 2](https://i.postimg.cc/MZ4ktqRm/Screenshot2024-05-1421450.jpg)
 
 - Users can navigate through different topics to explore related videos.
 - Topic containers dynamically load videos based on the selected topic.
