@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import VideoCard from '../VideoCard';
 import { YOUTUBE_API } from '../../Utils/constants';
 import { useDispatch, useSelector } from 'react-redux';
@@ -17,13 +17,11 @@ const VideoContainer = () => {
 
     // Calculate start and end dates for filtering by month
     const currentDate = new Date();
-    const [startDateStr, endDateStr] = [
-        new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString(),
-        new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString()
-    ];
+    const startDateStr = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString();
+    const endDateStr = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString();
 
-    // Function to fetch videos
-    const fetchVideo = async (token = '') => {
+    // Memoize fetchVideo to prevent unnecessary re-renders
+    const fetchVideo = useCallback(async (tokenParam = '') => {
         try {
             setIsLoading(true); // Set loading to true before fetching videos
             let apiUrl = '';
@@ -31,15 +29,15 @@ const VideoContainer = () => {
             // Determine API URL based on active topic
             if (activeTopic.includes('search')) {
                 const reconstructTopic = activeTopic.replace('search', '');
-                apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${reconstructTopic}&type=video&maxResults=20&key=${YOUTUBE_API()}&pageToken=${token}&regionCode=IN&relevanceLanguage=en`;
+                apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${reconstructTopic}&type=video&maxResults=20&key=${YOUTUBE_API()}&pageToken=${tokenParam}&regionCode=IN&relevanceLanguage=en`;
             } else if (activeTopic.length === 24) {
-                apiUrl = `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API()}&order=date&part=snippet&channelId=${activeTopic}&type=video&maxResults=20&pageToken=${token}&regionCode=IN&relevanceLanguage=en`;
+                apiUrl = `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API()}&order=date&part=snippet&channelId=${activeTopic}&type=video&maxResults=20&pageToken=${tokenParam}&regionCode=IN&relevanceLanguage=en`;
             } else if (activeTopic === 'Home' || activeTopic === 'All') {
-                apiUrl = `https://www.googleapis.com/youtube/v3/videos?chart=mostPopular&part=snippet,contentDetails,statistics&regionCode=IN&maxResults=20&key=${YOUTUBE_API()}&hl=en&pageToken=${token}&regionCode=IN&relevanceLanguage=en`;
+                apiUrl = `https://www.googleapis.com/youtube/v3/videos?chart=mostPopular&part=snippet,contentDetails,statistics&regionCode=IN&maxResults=20&key=${YOUTUBE_API()}&hl=en&pageToken=${tokenParam}&regionCode=IN&relevanceLanguage=en`;
             } else if (activeTopic === 'Live') {
-                apiUrl = `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API()}&part=snippet&q=${activeTopic}&type=video&maxResults=20&eventType=live&pageToken=${token}&regionCode=IN&relevanceLanguage=en`;
+                apiUrl = `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API()}&part=snippet&q=${activeTopic}&type=video&maxResults=20&eventType=live&pageToken=${tokenParam}&regionCode=IN&relevanceLanguage=en`;
             } else {
-                apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(activeTopic)}&publishedAfter=${startDateStr}&publishedBefore=${endDateStr}&type=video&maxResults=20&key=${YOUTUBE_API()}&pageToken=${token}&regionCode=IN&relevanceLanguage=en`;
+                apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(activeTopic)}&publishedAfter=${startDateStr}&publishedBefore=${endDateStr}&type=video&maxResults=20&key=${YOUTUBE_API()}&pageToken=${tokenParam}&regionCode=IN&relevanceLanguage=en`;
             }
 
             // Fetch data from API
@@ -55,12 +53,15 @@ const VideoContainer = () => {
         } finally {
             setIsLoading(false); // Set loading to false after fetching videos
         }
-    };
+    }, [activeTopic, dispatch, startDateStr, endDateStr]);
 
     // Fetch videos when activeTopic changes
     useEffect(() => {
-        fetchVideo();
-    }, [activeTopic]);
+        const getVideos = async () => {
+            await fetchVideo();
+        };
+        getVideos();
+    }, [activeTopic, fetchVideo]);
 
     // Function to handle "Show More" button click
     const handleShowMore = async () => {
@@ -73,7 +74,7 @@ const VideoContainer = () => {
         // Delay fetching videos to ensure scrolling completes first
         setTimeout(() => {
             fetchVideo(token);
-        }, 500); // Adjust the delay time as needed
+        }, 500);
     };
 
     // Render shimmer UI while loading or if videos are not yet fetched
@@ -89,7 +90,9 @@ const VideoContainer = () => {
             </div>
             {/* "Show More" button */}
             <div className='flex justify-center mb-8'>
-                <button className='w-[50%] px-auto rounded-full bg-[#cfcdcd3e] font-medium text-blue-500 py-2 text-lg sm:text-sm' onClick={handleShowMore}>Show More</button>
+                <button className='w-[50%] px-auto rounded-full bg-[#cfcdcd3e] font-medium text-blue-500 py-2 text-lg sm:text-sm' onClick={handleShowMore}>
+                    Show More
+                </button>
             </div>
         </>
     );
