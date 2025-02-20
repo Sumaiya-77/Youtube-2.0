@@ -1,483 +1,101 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import VideoCard from '../VideoCard';
+import { YOUTUBE_API } from '../../Utils/constants';
+import { useDispatch, useSelector } from 'react-redux';
+import ShimmerUI from '../ShimmerUI/ShimmerUI';
+import { changeToken } from '../../Utils/Store/stateSlice';
 
-const ShimmerUI = () => {
+const VideoContainer = () => {
+    // Redux hooks
+    const dispatch = useDispatch();
+    const activeTopic = useSelector(store => store.state.activeTopic);
+    const token = useSelector(store => store.state.token);
+
+    // Local state
+    const [videos, setVideos] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Calculate start and end dates for filtering by month
+    const currentDate = new Date();
+    const startDateStr = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString();
+    const endDateStr = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString();
+
+    // Memoize fetchVideo to prevent unnecessary re-renders
+    const fetchVideo = useCallback(async (tokenParam = '') => {
+        try {
+            setIsLoading(true); // Set loading to true before fetching videos
+            let apiUrl = '';
+
+            // Determine API URL based on active topic
+            if (activeTopic.includes('search')) {
+                const reconstructTopic = activeTopic.replace('search', '');
+                apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${reconstructTopic}&type=video&maxResults=20&key=${YOUTUBE_API()}&pageToken=${tokenParam}&regionCode=IN&relevanceLanguage=en`;
+            } else if (activeTopic.length === 24) {
+                apiUrl = `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API()}&order=date&part=snippet&channelId=${activeTopic}&type=video&maxResults=20&pageToken=${tokenParam}&regionCode=IN&relevanceLanguage=en`;
+            } else if (activeTopic === 'Home' || activeTopic === 'All') {
+                apiUrl = `https://www.googleapis.com/youtube/v3/videos?chart=mostPopular&part=snippet,contentDetails,statistics&regionCode=IN&maxResults=20&key=${YOUTUBE_API()}&hl=en&pageToken=${tokenParam}&regionCode=IN&relevanceLanguage=en`;
+            } else if (activeTopic === 'Live') {
+                apiUrl = `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API()}&part=snippet&q=${activeTopic}&type=video&maxResults=20&eventType=live&pageToken=${tokenParam}&regionCode=IN&relevanceLanguage=en`;
+            } else {
+                apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(activeTopic)}&publishedAfter=${startDateStr}&publishedBefore=${endDateStr}&type=video&maxResults=20&key=${YOUTUBE_API()}&pageToken=${tokenParam}&regionCode=IN&relevanceLanguage=en`;
+            }
+
+            // Fetch data from API
+            const data = await fetch(apiUrl);
+            if (!data.ok) {
+                throw new Error('Failed to fetch videos');
+            }
+            const json = await data.json();
+            setVideos(json?.items);
+            dispatch(changeToken(json?.nextPageToken));
+        } catch (error) {
+            console.error('Error fetching videos:', error);
+        } finally {
+            setIsLoading(false); // Set loading to false after fetching videos
+        }
+    }, [activeTopic, dispatch, startDateStr, endDateStr]);
+
+    // Fetch videos when activeTopic changes
+    useEffect(() => {
+        const getVideos = async () => {
+            await fetchVideo();
+        };
+        getVideos();
+    }, [activeTopic, fetchVideo]);
+
+    // Function to handle "Show More" button click
+    const handleShowMore = async () => {
+        // Scroll to top of the page
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+
+        // Delay fetching videos to ensure scrolling completes first
+        setTimeout(() => {
+            fetchVideo(token);
+        }, 500);
+    };
+
+    // Render shimmer UI while loading or if videos are not yet fetched
+    if (isLoading || !videos) return <ShimmerUI />;
+
     return (
-        <div id="">
-            <div className="grid grid-cols-4 gap-3 justify-center items-start p-3 2xl:grid-cols-3 lg:grid-cols-2 mmd:grid-cols-1 sm:grid-cols-2 ssm:grid-cols-1">
-                <a
-                    className="pb-4 sm:pb-3 "
-                >
-                    <div className="relative dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                        <div className="px-1.5 py-0.5 bg-[#6b6b6bd4] dark:bg-[#1c1c1cd4] text-white rounded text-xs font-medium absolute bottom-1.5 right-1.5 text-opacity-0">
-                            19:04
-                        </div>
-                        <img
-                            src='https://w0.peakpx.com/wallpaper/251/177/HD-wallpaper-youtube-carbon-logo-grunge-art-carbon-background-creative-youtube-black-logo-social-network-youtube-logo-youtube-thumbnail.jpg'
-                            alt="Video_Card"
-                            className="w-full h-full object-cover rounded-lg opacity-0"
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-2 mmd:gap-4 mmd:pt-3 sm:pt-2 sm:gap-2 ">
-                        <div className="w-10 2xl:w-12 lg:w-14 mmd:w-20 sm:w-12 ">
-                            <img
-                                alt="Channel_Logo"
-                                className="w-full rounded-full opacity-0"
-                                src="https://png.pngtree.com/png-clipart/20210917/ourmid/pngtree-avatar-user-placeholder-label-logo-png-image_3910106.jpg"
-                            />
-                        </div>
-                        <div className="w-[90%]">
-                            <p className="line-clamp-2 text-base font-medium mmd:text-xl sm:text-sm dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Entri Elevate “PORUL” | EP2 | WEBSERIES | KARIKKU
-                            </p>
-                            <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku
-                            </span>
-                            <p>
-                                <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                1.7M • 1 day ago
-                            </span>
-                            </p>
-                            <span className="hidden text-sm font-normal mmd:text-lg sm:text-xs ssm:block mt-1 dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku • 1.7M • 1 day ago
-                            </span>
-                        </div>
-                    </div>
-                </a>
-                <a
-                    className="pb-4 sm:pb-3 "
-                >
-                    <div className="relative dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                        <div className="px-1.5 py-0.5 bg-[#6b6b6bd4] dark:bg-[#1c1c1cd4] text-white rounded text-xs font-medium absolute bottom-1.5 right-1.5 text-opacity-0">
-                            19:04
-                        </div>
-                        <img
-                            src='https://w0.peakpx.com/wallpaper/251/177/HD-wallpaper-youtube-carbon-logo-grunge-art-carbon-background-creative-youtube-black-logo-social-network-youtube-logo-youtube-thumbnail.jpg'
-                            alt="Video_Card"
-                            className="w-full h-full object-cover rounded-lg opacity-0"
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-2 mmd:gap-4 mmd:pt-3 sm:pt-2 sm:gap-2 ">
-                        <div className="w-10 2xl:w-12 lg:w-14 mmd:w-20 sm:w-12 ">
-                            <img
-                                alt="Channel_Logo"
-                                className="w-full rounded-full opacity-0"
-                                src="https://png.pngtree.com/png-clipart/20210917/ourmid/pngtree-avatar-user-placeholder-label-logo-png-image_3910106.jpg"
-                            />
-                        </div>
-                        <div className="w-[90%]">
-                            <p className="line-clamp-2 text-base font-medium mmd:text-xl sm:text-sm dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Entri Elevate “PORUL” | EP2 | WEBSERIES | KARIKKU
-                            </p>
-                            <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku
-                            </span>
-                            <p>
-                                <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                1.7M • 1 day ago
-                            </span>
-                            </p>
-                            <span className="hidden text-sm font-normal mmd:text-lg sm:text-xs ssm:block mt-1 dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku • 1.7M • 1 day ago
-                            </span>
-                        </div>
-                    </div>
-                </a>
-                <a
-                    className="pb-4 sm:pb-3 "
-                >
-                    <div className="relative dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                        <div className="px-1.5 py-0.5 bg-[#6b6b6bd4] dark:bg-[#1c1c1cd4] text-white rounded text-xs font-medium absolute bottom-1.5 right-1.5 text-opacity-0">
-                            19:04
-                        </div>
-                        <img
-                            src='https://w0.peakpx.com/wallpaper/251/177/HD-wallpaper-youtube-carbon-logo-grunge-art-carbon-background-creative-youtube-black-logo-social-network-youtube-logo-youtube-thumbnail.jpg'
-                            alt="Video_Card"
-                            className="w-full h-full object-cover rounded-lg opacity-0"
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-2 mmd:gap-4 mmd:pt-3 sm:pt-2 sm:gap-2 ">
-                        <div className="w-10 2xl:w-12 lg:w-14 mmd:w-20 sm:w-12 ">
-                            <img
-                                alt="Channel_Logo"
-                                className="w-full rounded-full opacity-0"
-                                src="https://png.pngtree.com/png-clipart/20210917/ourmid/pngtree-avatar-user-placeholder-label-logo-png-image_3910106.jpg"
-                            />
-                        </div>
-                        <div className="w-[90%]">
-                            <p className="line-clamp-2 text-base font-medium mmd:text-xl sm:text-sm dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Entri Elevate “PORUL” | EP2 | WEBSERIES | KARIKKU
-                            </p>
-                            <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku
-                            </span>
-                            <p>
-                                <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                1.7M • 1 day ago
-                            </span>
-                            </p>
-                            <span className="hidden text-sm font-normal mmd:text-lg sm:text-xs ssm:block mt-1 dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku • 1.7M • 1 day ago
-                            </span>
-                        </div>
-                    </div>
-                </a>
-                <a
-                    className="pb-4 sm:pb-3 "
-                >
-                    <div className="relative dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                        <div className="px-1.5 py-0.5 bg-[#6b6b6bd4] dark:bg-[#1c1c1cd4] text-white rounded text-xs font-medium absolute bottom-1.5 right-1.5 text-opacity-0">
-                            19:04
-                        </div>
-                        <img
-                            src='https://w0.peakpx.com/wallpaper/251/177/HD-wallpaper-youtube-carbon-logo-grunge-art-carbon-background-creative-youtube-black-logo-social-network-youtube-logo-youtube-thumbnail.jpg'
-                            alt="Video_Card"
-                            className="w-full h-full object-cover rounded-lg opacity-0"
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-2 mmd:gap-4 mmd:pt-3 sm:pt-2 sm:gap-2 ">
-                        <div className="w-10 2xl:w-12 lg:w-14 mmd:w-20 sm:w-12 ">
-                            <img
-                                alt="Channel_Logo"
-                                className="w-full rounded-full opacity-0"
-                                src="https://png.pngtree.com/png-clipart/20210917/ourmid/pngtree-avatar-user-placeholder-label-logo-png-image_3910106.jpg"
-                            />
-                        </div>
-                        <div className="w-[90%]">
-                            <p className="line-clamp-2 text-base font-medium mmd:text-xl sm:text-sm dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Entri Elevate “PORUL” | EP2 | WEBSERIES | KARIKKU
-                            </p>
-                            <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku
-                            </span>
-                            <p>
-                                <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                1.7M • 1 day ago
-                            </span>
-                            </p>
-                            <span className="hidden text-sm font-normal mmd:text-lg sm:text-xs ssm:block mt-1 dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku • 1.7M • 1 day ago
-                            </span>
-                        </div>
-                    </div>
-                </a>
-                <a
-                    className="pb-4 sm:pb-3 "
-                >
-                    <div className="relative dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                        <div className="px-1.5 py-0.5 bg-[#6b6b6bd4] dark:bg-[#1c1c1cd4] text-white rounded text-xs font-medium absolute bottom-1.5 right-1.5 text-opacity-0">
-                            19:04
-                        </div>
-                        <img
-                            src='https://w0.peakpx.com/wallpaper/251/177/HD-wallpaper-youtube-carbon-logo-grunge-art-carbon-background-creative-youtube-black-logo-social-network-youtube-logo-youtube-thumbnail.jpg'
-                            alt="Video_Card"
-                            className="w-full h-full object-cover rounded-lg opacity-0"
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-2 mmd:gap-4 mmd:pt-3 sm:pt-2 sm:gap-2 ">
-                        <div className="w-10 2xl:w-12 lg:w-14 mmd:w-20 sm:w-12 ">
-                            <img
-                                alt="Channel_Logo"
-                                className="w-full rounded-full opacity-0"
-                                src="https://png.pngtree.com/png-clipart/20210917/ourmid/pngtree-avatar-user-placeholder-label-logo-png-image_3910106.jpg"
-                            />
-                        </div>
-                        <div className="w-[90%]">
-                            <p className="line-clamp-2 text-base font-medium mmd:text-xl sm:text-sm dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Entri Elevate “PORUL” | EP2 | WEBSERIES | KARIKKU
-                            </p>
-                            <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku
-                            </span>
-                            <p>
-                                <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                1.7M • 1 day ago
-                            </span>
-                            </p>
-                            <span className="hidden text-sm font-normal mmd:text-lg sm:text-xs ssm:block mt-1 dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku • 1.7M • 1 day ago
-                            </span>
-                        </div>
-                    </div>
-                </a>
-                <a
-                    className="pb-4 sm:pb-3 "
-                >
-                    <div className="relative dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                        <div className="px-1.5 py-0.5 bg-[#6b6b6bd4] dark:bg-[#1c1c1cd4] text-white rounded text-xs font-medium absolute bottom-1.5 right-1.5 text-opacity-0">
-                            19:04
-                        </div>
-                        <img
-                            src='https://w0.peakpx.com/wallpaper/251/177/HD-wallpaper-youtube-carbon-logo-grunge-art-carbon-background-creative-youtube-black-logo-social-network-youtube-logo-youtube-thumbnail.jpg'
-                            alt="Video_Card"
-                            className="w-full h-full object-cover rounded-lg opacity-0"
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-2 mmd:gap-4 mmd:pt-3 sm:pt-2 sm:gap-2 ">
-                        <div className="w-10 2xl:w-12 lg:w-14 mmd:w-20 sm:w-12 ">
-                            <img
-                                alt="Channel_Logo"
-                                className="w-full rounded-full opacity-0"
-                                src="https://png.pngtree.com/png-clipart/20210917/ourmid/pngtree-avatar-user-placeholder-label-logo-png-image_3910106.jpg"
-                            />
-                        </div>
-                        <div className="w-[90%]">
-                            <p className="line-clamp-2 text-base font-medium mmd:text-xl sm:text-sm dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Entri Elevate “PORUL” | EP2 | WEBSERIES | KARIKKU
-                            </p>
-                            <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku
-                            </span>
-                            <p>
-                                <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                1.7M • 1 day ago
-                            </span>
-                            </p>
-                            <span className="hidden text-sm font-normal mmd:text-lg sm:text-xs ssm:block mt-1 dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku • 1.7M • 1 day ago
-                            </span>
-                        </div>
-                    </div>
-                </a>
-                <a
-                    className="pb-4 sm:pb-3 "
-                >
-                    <div className="relative dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                        <div className="px-1.5 py-0.5 bg-[#6b6b6bd4] dark:bg-[#1c1c1cd4] text-white rounded text-xs font-medium absolute bottom-1.5 right-1.5 text-opacity-0">
-                            19:04
-                        </div>
-                        <img
-                            src='https://w0.peakpx.com/wallpaper/251/177/HD-wallpaper-youtube-carbon-logo-grunge-art-carbon-background-creative-youtube-black-logo-social-network-youtube-logo-youtube-thumbnail.jpg'
-                            alt="Video_Card"
-                            className="w-full h-full object-cover rounded-lg opacity-0"
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-2 mmd:gap-4 mmd:pt-3 sm:pt-2 sm:gap-2 ">
-                        <div className="w-10 2xl:w-12 lg:w-14 mmd:w-20 sm:w-12 ">
-                            <img
-                                alt="Channel_Logo"
-                                className="w-full rounded-full opacity-0"
-                                src="https://png.pngtree.com/png-clipart/20210917/ourmid/pngtree-avatar-user-placeholder-label-logo-png-image_3910106.jpg"
-                            />
-                        </div>
-                        <div className="w-[90%]">
-                            <p className="line-clamp-2 text-base font-medium mmd:text-xl sm:text-sm dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Entri Elevate “PORUL” | EP2 | WEBSERIES | KARIKKU
-                            </p>
-                            <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku
-                            </span>
-                            <p>
-                                <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                1.7M • 1 day ago
-                            </span>
-                            </p>
-                            <span className="hidden text-sm font-normal mmd:text-lg sm:text-xs ssm:block mt-1 dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku • 1.7M • 1 day ago
-                            </span>
-                        </div>
-                    </div>
-                </a>
-                <a
-                    className="pb-4 sm:pb-3 "
-                >
-                    <div className="relative dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                        <div className="px-1.5 py-0.5 bg-[#6b6b6bd4] dark:bg-[#1c1c1cd4] text-white rounded text-xs font-medium absolute bottom-1.5 right-1.5 text-opacity-0">
-                            19:04
-                        </div>
-                        <img
-                            src='https://w0.peakpx.com/wallpaper/251/177/HD-wallpaper-youtube-carbon-logo-grunge-art-carbon-background-creative-youtube-black-logo-social-network-youtube-logo-youtube-thumbnail.jpg'
-                            alt="Video_Card"
-                            className="w-full h-full object-cover rounded-lg opacity-0"
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-2 mmd:gap-4 mmd:pt-3 sm:pt-2 sm:gap-2 ">
-                        <div className="w-10 2xl:w-12 lg:w-14 mmd:w-20 sm:w-12 ">
-                            <img
-                                alt="Channel_Logo"
-                                className="w-full rounded-full opacity-0"
-                                src="https://png.pngtree.com/png-clipart/20210917/ourmid/pngtree-avatar-user-placeholder-label-logo-png-image_3910106.jpg"
-                            />
-                        </div>
-                        <div className="w-[90%]">
-                            <p className="line-clamp-2 text-base font-medium mmd:text-xl sm:text-sm dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Entri Elevate “PORUL” | EP2 | WEBSERIES | KARIKKU
-                            </p>
-                            <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku
-                            </span>
-                            <p>
-                                <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                1.7M • 1 day ago
-                            </span>
-                            </p>
-                            <span className="hidden text-sm font-normal mmd:text-lg sm:text-xs ssm:block mt-1 dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku • 1.7M • 1 day ago
-                            </span>
-                        </div>
-                    </div>
-                </a>
-                <a
-                    className="pb-4 sm:pb-3 "
-                >
-                    <div className="relative dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                        <div className="px-1.5 py-0.5 bg-[#6b6b6bd4] dark:bg-[#1c1c1cd4] text-white rounded text-xs font-medium absolute bottom-1.5 right-1.5 text-opacity-0">
-                            19:04
-                        </div>
-                        <img
-                            src='https://w0.peakpx.com/wallpaper/251/177/HD-wallpaper-youtube-carbon-logo-grunge-art-carbon-background-creative-youtube-black-logo-social-network-youtube-logo-youtube-thumbnail.jpg'
-                            alt="Video_Card"
-                            className="w-full h-full object-cover rounded-lg opacity-0"
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-2 mmd:gap-4 mmd:pt-3 sm:pt-2 sm:gap-2 ">
-                        <div className="w-10 2xl:w-12 lg:w-14 mmd:w-20 sm:w-12 ">
-                            <img
-                                alt="Channel_Logo"
-                                className="w-full rounded-full opacity-0"
-                                src="https://png.pngtree.com/png-clipart/20210917/ourmid/pngtree-avatar-user-placeholder-label-logo-png-image_3910106.jpg"
-                            />
-                        </div>
-                        <div className="w-[90%]">
-                            <p className="line-clamp-2 text-base font-medium mmd:text-xl sm:text-sm dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Entri Elevate “PORUL” | EP2 | WEBSERIES | KARIKKU
-                            </p>
-                            <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku
-                            </span>
-                            <p>
-                                <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                1.7M • 1 day ago
-                            </span>
-                            </p>
-                            <span className="hidden text-sm font-normal mmd:text-lg sm:text-xs ssm:block mt-1 dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku • 1.7M • 1 day ago
-                            </span>
-                        </div>
-                    </div>
-                </a>
-                <a
-                    className="pb-4 sm:pb-3 "
-                >
-                    <div className="relative dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                        <div className="px-1.5 py-0.5 bg-[#6b6b6bd4] dark:bg-[#1c1c1cd4] text-white rounded text-xs font-medium absolute bottom-1.5 right-1.5 text-opacity-0">
-                            19:04
-                        </div>
-                        <img
-                            src='https://w0.peakpx.com/wallpaper/251/177/HD-wallpaper-youtube-carbon-logo-grunge-art-carbon-background-creative-youtube-black-logo-social-network-youtube-logo-youtube-thumbnail.jpg'
-                            alt="Video_Card"
-                            className="w-full h-full object-cover rounded-lg opacity-0"
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-2 mmd:gap-4 mmd:pt-3 sm:pt-2 sm:gap-2 ">
-                        <div className="w-10 2xl:w-12 lg:w-14 mmd:w-20 sm:w-12 ">
-                            <img
-                                alt="Channel_Logo"
-                                className="w-full rounded-full opacity-0"
-                                src="https://png.pngtree.com/png-clipart/20210917/ourmid/pngtree-avatar-user-placeholder-label-logo-png-image_3910106.jpg"
-                            />
-                        </div>
-                        <div className="w-[90%]">
-                            <p className="line-clamp-2 text-base font-medium mmd:text-xl sm:text-sm dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Entri Elevate “PORUL” | EP2 | WEBSERIES | KARIKKU
-                            </p>
-                            <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku
-                            </span>
-                            <p>
-                                <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                1.7M • 1 day ago
-                            </span>
-                            </p>
-                            <span className="hidden text-sm font-normal mmd:text-lg sm:text-xs ssm:block mt-1 dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku • 1.7M • 1 day ago
-                            </span>
-                        </div>
-                    </div>
-                </a>
-                <a
-                    className="pb-4 sm:pb-3 "
-                >
-                    <div className="relative dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                        <div className="px-1.5 py-0.5 bg-[#6b6b6bd4] dark:bg-[#1c1c1cd4] text-white rounded text-xs font-medium absolute bottom-1.5 right-1.5 text-opacity-0">
-                            19:04
-                        </div>
-                        <img
-                            src='https://w0.peakpx.com/wallpaper/251/177/HD-wallpaper-youtube-carbon-logo-grunge-art-carbon-background-creative-youtube-black-logo-social-network-youtube-logo-youtube-thumbnail.jpg'
-                            alt="Video_Card"
-                            className="w-full h-full object-cover rounded-lg opacity-0"
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-2 mmd:gap-4 mmd:pt-3 sm:pt-2 sm:gap-2 ">
-                        <div className="w-10 2xl:w-12 lg:w-14 mmd:w-20 sm:w-12 ">
-                            <img
-                                alt="Channel_Logo"
-                                className="w-full rounded-full opacity-0"
-                                src="https://png.pngtree.com/png-clipart/20210917/ourmid/pngtree-avatar-user-placeholder-label-logo-png-image_3910106.jpg"
-                            />
-                        </div>
-                        <div className="w-[90%]">
-                            <p className="line-clamp-2 text-base font-medium mmd:text-xl sm:text-sm dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Entri Elevate “PORUL” | EP2 | WEBSERIES | KARIKKU
-                            </p>
-                            <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku
-                            </span>
-                            <p>
-                                <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                1.7M • 1 day ago
-                            </span>
-                            </p>
-                            <span className="hidden text-sm font-normal mmd:text-lg sm:text-xs ssm:block mt-1 dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku • 1.7M • 1 day ago
-                            </span>
-                        </div>
-                    </div>
-                </a>
-                <a
-                    className="pb-4 sm:pb-3 "
-                >
-                    <div className="relative dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                        <div className="px-1.5 py-0.5 bg-[#6b6b6bd4] dark:bg-[#1c1c1cd4] text-white rounded text-xs font-medium absolute bottom-1.5 right-1.5 text-opacity-0">
-                            19:04
-                        </div>
-                        <img
-                            src='https://w0.peakpx.com/wallpaper/251/177/HD-wallpaper-youtube-carbon-logo-grunge-art-carbon-background-creative-youtube-black-logo-social-network-youtube-logo-youtube-thumbnail.jpg'
-                            alt="Video_Card"
-                            className="w-full h-full object-cover rounded-lg opacity-0"
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-2 mmd:gap-4 mmd:pt-3 sm:pt-2 sm:gap-2 ">
-                        <div className="w-10 2xl:w-12 lg:w-14 mmd:w-20 sm:w-12 ">
-                            <img
-                                alt="Channel_Logo"
-                                className="w-full rounded-full opacity-0"
-                                src="https://png.pngtree.com/png-clipart/20210917/ourmid/pngtree-avatar-user-placeholder-label-logo-png-image_3910106.jpg"
-                            />
-                        </div>
-                        <div className="w-[90%]">
-                            <p className="line-clamp-2 text-base font-medium mmd:text-xl sm:text-sm dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Entri Elevate “PORUL” | EP2 | WEBSERIES | KARIKKU
-                            </p>
-                            <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku
-                            </span>
-                            <p>
-                                <span className="text-sm font-normal mmd:text-lg sm:text-xs ssm:hidden dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                1.7M • 1 day ago
-                            </span>
-                            </p>
-                            <span className="hidden text-sm font-normal mmd:text-lg sm:text-xs ssm:block mt-1 dark:text-neutral-800 text-neutral-400 dark:bg-neutral-800 bg-neutral-400 rounded-xl">
-                                Karikku • 1.7M • 1 day ago
-                            </span>
-                        </div>
-                    </div>
-                </a>
-                
-                
+        <>
+            <div className='grid grid-cols-4 gap-3 justify-center items-start p-3 2xl:grid-cols-3 lg:grid-cols-2 mmd:grid-cols-1 sm:grid-cols-2 ssm:grid-cols-1'>
+                {/* Render VideoCard components */}
+                {videos.map((video, index) => (
+                    <VideoCard video={video} key={index} />
+                ))}
             </div>
-        </div>
+            {/* "Show More" button */}
+            <div className='flex justify-center mb-8'>
+                <button className='w-[50%] px-auto rounded-full bg-[#cfcdcd3e] font-medium text-blue-500 py-2 text-lg sm:text-sm' onClick={handleShowMore}>
+                    Show More
+                </button>
+            </div>
+        </>
+    );
+};
 
-    )
-}
-
-export default ShimmerUI
+export default VideoContainer;
